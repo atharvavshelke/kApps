@@ -103,6 +103,24 @@ async function init() {
         return;
     }
 
+    // Handle scheduled IDB wipe in a completely clean state to avoid deadlocks
+    if (sessionStorage.getItem('wipe_scramjet') === 'true') {
+        console.log('Performing scheduled IDB wipe...');
+        sessionStorage.removeItem('wipe_scramjet');
+        await new Promise((resolve) => {
+            const req = indexedDB.deleteDatabase('$scramjet');
+            req.onsuccess = resolve;
+            req.onerror = resolve;
+            req.onblocked = () => {
+                console.warn('IDB delete blocked even in clean state. Proceeding anyway.');
+                resolve();
+            };
+        });
+        // Reload one more time to proceed with normal initialization
+        window.location.reload();
+        return;
+    }
+
     try {
         // Register fresh Scramjet Service Worker
         const registration = await navigator.serviceWorker.register('/sw.js', {
@@ -136,23 +154,14 @@ async function init() {
         try {
             await scramjet.init();
         } catch (e) {
-            console.warn('Wiping stale $scramjet IDB and reloading...', e);
+            console.warn('Scramjet init failed. Scheduling IDB wipe on next load.', e);
 
-            // Unregister SWs so they don't hold the IDB connection open
+            // Unregister SWs so they don't hold the IDB connection open on the next load
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
 
-            await new Promise((resolve) => {
-                const req = indexedDB.deleteDatabase('$scramjet');
-                req.onsuccess = resolve;
-                req.onerror = resolve;
-                req.onblocked = () => {
-                    console.warn('IDB delete blocked. Reloading anyway.');
-                    resolve();
-                };
-            });
-
-            // Reload the page to start completely fresh
+            // Set flag to wipe database on next clean load before any connections open
+            sessionStorage.setItem('wipe_scramjet', 'true');
             window.location.reload();
             return;
         }
