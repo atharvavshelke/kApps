@@ -103,74 +103,24 @@ async function init() {
         return;
     }
 
-    // Handle scheduled IDB wipe in a completely clean state to avoid deadlocks
-    if (sessionStorage.getItem('wipe_scramjet') === 'true') {
-        console.log('Performing scheduled IDB wipe...');
-        sessionStorage.removeItem('wipe_scramjet');
-        await new Promise((resolve) => {
-            const req = indexedDB.deleteDatabase('$scramjet');
-            req.onsuccess = resolve;
-            req.onerror = resolve;
-            req.onblocked = () => {
-                console.warn('IDB delete blocked even in clean state. Proceeding anyway.');
-                resolve();
-            };
-        });
-        // Reload one more time to proceed with normal initialization
-        window.location.reload();
-        return;
-    }
-
     try {
         // Register fresh Scramjet Service Worker
-        const registration = await navigator.serviceWorker.register('/sw.js', {
+        await navigator.serviceWorker.register('/sw.js', {
             scope: '/',
-            updateViaCache: 'none'
         });
 
-        // Wait for the service worker to be fully active and controlling the page
-        if (registration.installing || registration.waiting) {
-            await new Promise((resolve) => {
-                const sw = registration.installing || registration.waiting;
-                sw.addEventListener('statechange', (e) => {
-                    if (e.target.state === 'activated') resolve();
-                });
-            });
-        }
+        // Wait for the service worker to be fully ready
         await navigator.serviceWorker.ready;
 
-        // Ensure the service worker is controlling the page (essential for Scramjet)
-        if (!navigator.serviceWorker.controller) {
-            await new Promise(resolve => {
-                navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
-                // Force claim if possible
-                navigator.serviceWorker.ready.then(reg => {
-                    if (reg.active) reg.active.postMessage({ type: 'claim' });
-                });
-            });
-        }
-
-        // Initialize Scramjet (saves config to IndexedDB) as early as possible
-        try {
-            await scramjet.init();
-        } catch (e) {
-            console.warn('Scramjet init failed. Scheduling IDB wipe on next load.', e);
-
-            // Unregister SWs so they don't hold the IDB connection open on the next load
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (const r of regs) await r.unregister();
-
-            // Set flag to wipe database on next clean load before any connections open
-            sessionStorage.setItem('wipe_scramjet', 'true');
-            window.location.reload();
-            return;
-        }
         // Set up bare-mux transport — epoxy-transport is ESM + no WASM dependency
         const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
         const wispUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/wisp/`;
 
         console.log('Transport setup: /epoxy/index.mjs');
         await conn.setTransport('/epoxy/index.mjs', [wispUrl]);
+
+        // Send Scramjet config to SW (Note: this must happen after SW is ready and bare-mux is set up)
+        await scramjet.init();
 
         // Create a ScramjetFrame wrapping the proxy iframe
         scramjetFrame = scramjet.createFrame(proxyFrame);
