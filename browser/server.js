@@ -8,8 +8,6 @@ import fastifyStatic from "@fastify/static";
 import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
-const uvPath = fileURLToPath(new URL("./node_modules/@titaniumnetwork-dev/ultraviolet/dist", import.meta.url));
-
 const epoxyPath = fileURLToPath(new URL("./node_modules/@mercuryworkshop/epoxy-transport/dist", import.meta.url));
 const publicPath = fileURLToPath(new URL("./public/", import.meta.url));
 
@@ -42,12 +40,6 @@ const fastify = Fastify({
 fastify.register(fastifyStatic, {
     root: publicPath,
     decorateReply: true,
-});
-
-fastify.register(fastifyStatic, {
-    root: uvPath,
-    prefix: "/uv/",
-    decorateReply: false,
 });
 
 fastify.register(fastifyStatic, {
