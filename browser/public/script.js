@@ -136,16 +136,26 @@ async function init() {
         try {
             await scramjet.init();
         } catch (e) {
-            console.warn('Wiping stale $scramjet IDB and retrying...', e);
+            console.warn('Wiping stale $scramjet IDB and reloading...', e);
+
+            // Unregister SWs so they don't hold the IDB connection open
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const r of regs) await r.unregister();
+
             await new Promise((resolve) => {
                 const req = indexedDB.deleteDatabase('$scramjet');
                 req.onsuccess = resolve;
                 req.onerror = resolve;
-                req.onblocked = resolve;
+                req.onblocked = () => {
+                    console.warn('IDB delete blocked. Reloading anyway.');
+                    resolve();
+                };
             });
-            await scramjet.init();
-        }
 
+            // Reload the page to start completely fresh
+            window.location.reload();
+            return;
+        }
         // Set up bare-mux transport — epoxy-transport is ESM + no WASM dependency
         const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
         const wispUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/wisp/`;
