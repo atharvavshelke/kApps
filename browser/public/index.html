@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <div class="browser-container">
         <!-- Browser Chrome (Top Bar) -->
@@ -17,7 +19,7 @@
                 <span class="control minimize"></span>
                 <span class="control maximize"></span>
             </div>
-            
+
             <div class="navigation-controls">
                 <button id="back-btn" class="nav-btn" title="Back"><i class="fas fa-arrow-left"></i></button>
                 <button id="forward-btn" class="nav-btn" title="Forward"><i class="fas fa-arrow-right"></i></button>
@@ -26,10 +28,11 @@
 
             <div class="address-bar-container">
                 <i class="fas fa-lock security-icon"></i>
-                <input type="text" id="url-input" class="address-bar" placeholder="Search or enter web address" value="https://wikipedia.org">
+                <input type="text" id="url-input" class="address-bar" placeholder="Search or enter web address"
+                    value="https://api.ipify.org/">
                 <button id="go-btn" class="go-btn" title="Go"><i class="fas fa-arrow-right"></i></button>
             </div>
-            
+
             <div class="extensions-controls">
                 <button class="nav-btn"><i class="fas fa-puzzle-piece"></i></button>
                 <button class="nav-btn"><i class="fas fa-bars"></i></button>
@@ -39,12 +42,14 @@
         <!-- Main Content Area -->
         <div class="browser-content">
             <div id="loading-overlay" class="hidden">
-                 <div class="spinner"></div>
+                <div class="spinner"></div>
             </div>
-            <iframe id="browser-frame" src="about:blank" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+            <iframe id="browser-frame" src="about:blank"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
+
 </html>
