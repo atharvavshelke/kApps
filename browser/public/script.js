@@ -97,9 +97,48 @@ function syncAddressBar() {
 proxyFrame.addEventListener('load', syncAddressBar);
 
 // ── Service Worker + Scramjet init ──
+async function ensureCleanIDB() {
+    return new Promise((resolve) => {
+        const req = indexedDB.open('$scramjet');
+        req.onupgradeneeded = (e) => {
+            // DB doesn't exist or needs upgrade. Let Scramjet handle it later.
+            e.target.transaction.abort();
+            resolve(true);
+        };
+        req.onsuccess = async (e) => {
+            const db = e.target.result;
+            const hasConfig = db.objectStoreNames.contains('config');
+            db.close();
+
+            if (!hasConfig) {
+                console.warn('Scramjet IDB is corrupted (missing config). Wiping...');
+                try {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (const reg of regs) await reg.unregister();
+                } catch (err) { }
+
+                const delReq = indexedDB.deleteDatabase('$scramjet');
+                delReq.onsuccess = () => resolve(false);
+                delReq.onerror = () => resolve(false);
+                delReq.onblocked = () => resolve(false);
+            } else {
+                resolve(true);
+            }
+        };
+        req.onerror = () => resolve(true);
+    });
+}
+
 async function init() {
     if (!('serviceWorker' in navigator)) {
         swBanner.querySelector('span').textContent = '⚠️ Service Workers not supported';
+        return;
+    }
+
+    // Check and repair IDB before any SW starts
+    const isClean = await ensureCleanIDB();
+    if (!isClean) {
+        swBanner.querySelector('span').innerHTML = '⚠️ Corrupted proxy database cleared. <a href="javascript:window.location.reload()" style="color:var(--primary)">Click here to reload</a>.';
         return;
     }
 
@@ -131,22 +170,6 @@ async function init() {
     } catch (err) {
         console.error('Proxy init error:', err);
         swBanner.querySelector('span').textContent = '⚠️ Proxy engine error: ' + err.message;
-
-        // If the IDB is corrupted from previous versions, clear it and ask the user to reload
-        if (err.name === 'InvalidStateError' || err.message.includes('config') || err.message.includes('object store')) {
-            navigator.serviceWorker.getRegistrations().then(regs => {
-                for (const reg of regs) {
-                    reg.unregister();
-                }
-                const req = indexedDB.deleteDatabase('$scramjet');
-                req.onsuccess = () => {
-                    swBanner.querySelector('span').innerHTML = '⚠️ Corrupted proxy database cleared. <a href="javascript:window.location.reload()" style="color:var(--primary)">Click here to reload</a>.';
-                };
-                req.onblocked = () => {
-                    swBanner.querySelector('span').innerHTML = '⚠️ Corrupted proxy database. Please close other tabs and <a href="javascript:window.location.reload()" style="color:var(--primary)">reload</a>.';
-                };
-            });
-        }
     }
 }
 
