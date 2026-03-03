@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let historyIndex = -1;
 
     // Base URL for the proxy server
-    const PROXY_URL = '/proxy?url=';
+    const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? '/proxy?url='
+        : 'https://kapps.onrender.com/proxy?url=';
 
     function isUrlValid(string) {
         try {
