@@ -4,11 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Proxy Browser</title>
+    <title>kApps — Web Proxy Browser</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="description" content="kApps Web Proxy Browser — Access any website freely">
 </head>
 
 <body>
@@ -22,40 +21,78 @@
             </div>
 
             <div class="navigation-controls">
-                <button id="back-btn" class="nav-btn" title="Back"><i class="fas fa-arrow-left"></i></button>
-                <button id="forward-btn" class="nav-btn" title="Forward"><i class="fas fa-arrow-right"></i></button>
+                <button id="back-btn" class="nav-btn" title="Back" disabled><i class="fas fa-arrow-left"></i></button>
+                <button id="forward-btn" class="nav-btn" title="Forward" disabled><i
+                        class="fas fa-arrow-right"></i></button>
                 <button id="reload-btn" class="nav-btn" title="Reload"><i class="fas fa-redo"></i></button>
             </div>
 
             <div class="address-bar-container">
-                <i class="fas fa-lock security-icon"></i>
+                <i class="fas fa-globe security-icon"></i>
                 <input type="text" id="url-input" class="address-bar" placeholder="Search or enter web address"
-                    value="https://api.ipify.org/">
+                    autocomplete="off">
                 <button id="go-btn" class="go-btn" title="Go"><i class="fas fa-arrow-right"></i></button>
             </div>
 
             <div class="extensions-controls">
-                <button class="nav-btn"><i class="fas fa-puzzle-piece"></i></button>
-                <button class="nav-btn"><i class="fas fa-bars"></i></button>
+                <button id="home-btn" class="nav-btn" title="Home"><i class="fas fa-home"></i></button>
             </div>
         </div>
 
-        <!-- SW Status Banner (hidden once active) -->
+        <!-- Status Banner (hidden once SW active) -->
         <div id="sw-banner" class="sw-banner">
             <div class="spinner-small"></div>
             <span>Initializing proxy engine…</span>
         </div>
 
-        <!-- Main Content Area -->
-        <div class="browser-content">
-            <div id="loading-overlay" class="hidden">
-                <div class="spinner"></div>
+        <!-- Landing page (shown when no proxy page is loaded) -->
+        <div id="landing" class="landing">
+            <div class="landing-inner">
+                <div class="landing-logo">
+                    <i class="fas fa-globe-americas"></i>
+                </div>
+                <h1 class="landing-title">kApps</h1>
+                <p class="landing-subtitle">Access any website freely</p>
+                <div class="landing-search">
+                    <input type="text" id="landing-input" class="landing-input" placeholder="Search or enter URL…"
+                        autocomplete="off">
+                    <button id="landing-go" class="landing-go"><i class="fas fa-search"></i></button>
+                </div>
+                <div class="landing-shortcuts">
+                    <a class="shortcut" data-url="https://www.google.com">
+                        <div class="shortcut-icon"><i class="fab fa-google"></i></div>
+                        <span>Google</span>
+                    </a>
+                    <a class="shortcut" data-url="https://www.youtube.com">
+                        <div class="shortcut-icon"><i class="fab fa-youtube"></i></div>
+                        <span>YouTube</span>
+                    </a>
+                    <a class="shortcut" data-url="https://discord.com/app">
+                        <div class="shortcut-icon"><i class="fab fa-discord"></i></div>
+                        <span>Discord</span>
+                    </a>
+                    <a class="shortcut" data-url="https://www.reddit.com">
+                        <div class="shortcut-icon"><i class="fab fa-reddit-alien"></i></div>
+                        <span>Reddit</span>
+                    </a>
+                    <a class="shortcut" data-url="https://twitter.com">
+                        <div class="shortcut-icon"><i class="fab fa-twitter"></i></div>
+                        <span>Twitter</span>
+                    </a>
+                    <a class="shortcut" data-url="https://www.spotify.com">
+                        <div class="shortcut-icon"><i class="fab fa-spotify"></i></div>
+                        <span>Spotify</span>
+                    </a>
+                </div>
             </div>
-            <iframe id="browser-frame" src="about:blank"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"></iframe>
         </div>
+
+        <!-- Proxy content area (iframe for Scramjet pages) -->
+        <iframe id="proxy-frame" class="proxy-frame hidden"></iframe>
     </div>
 
+    <script src="/scram/scramjet.all.js"></script>
+    <script src="/baremux/index.js"></script>
     <script src="script.js"></script>
 </body>
 

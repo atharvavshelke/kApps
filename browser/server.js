@@ -1,236 +1,113 @@
-const express = require('express');
-const fetch = require('node-fetch');
-const path = require('path');
+import { createServer } from "node:http";
+import { fileURLToPath } from "url";
+import { hostname } from "node:os";
+import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
+import Fastify from "fastify";
+import fastifyStatic from "@fastify/static";
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+import { scramjetPath } from "@mercuryworkshop/scramjet/path";
+import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
+import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
-// ── Security headers to strip from proxied responses ──
-const BLOCKED_HEADERS = new Set([
-    'x-frame-options',
-    'content-security-policy',
-    'content-security-policy-report-only',
-    'strict-transport-security',
-    'public-key-pins',
-    'permissions-policy',
-    'cross-origin-opener-policy',
-    'cross-origin-embedder-policy',
-    'cross-origin-resource-policy',
-    'transfer-encoding',
-    'content-encoding',
-    'content-length',
-]);
+const epoxyPath = fileURLToPath(new URL("./node_modules/@mercuryworkshop/epoxy-transport/dist", import.meta.url));
 
-// ── Favicon ──
-app.get('/favicon.ico', (_req, res) => res.status(204).end());
+const publicPath = fileURLToPath(new URL("./public/", import.meta.url));
 
-// ── Static files (index.html, script.js, style.css, sw.js) ──
-app.use(express.static('public'));
+// ── Wisp Configuration ──
+logging.set_level(logging.NONE);
+Object.assign(wisp.options, {
+    allow_udp_streams: false,
+    dns_servers: ["1.1.1.1", "1.0.0.1"],
+});
 
-// ── Parse raw body for POST forwarding on /api/proxy ──
-app.use('/api/proxy', express.raw({ type: '*/*', limit: '50mb' }));
-
-// ── Helper: copy safe headers to response ──
-function copySafeHeaders(from, to) {
-    from.forEach((value, key) => {
-        if (!BLOCKED_HEADERS.has(key.toLowerCase())) {
-            try { to.setHeader(key, value); } catch { }
-        }
-    });
-}
-
-// ── Helper: build upstream fetch options ──
-function buildFetchOptions(method, reqHeaders, body) {
-    const opts = {
-        method,
-        headers: {
-            'Accept': reqHeaders.accept || 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': reqHeaders['accept-language'] || 'en-US,en;q=0.9',
-            'User-Agent': reqHeaders['user-agent'] ||
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        },
-        redirect: 'follow',
-        follow: 10,
-    };
-    if (body && body.length && method !== 'GET' && method !== 'HEAD') {
-        opts.body = body;
-        if (reqHeaders['content-type']) {
-            opts.headers['Content-Type'] = reqHeaders['content-type'];
-        }
-    }
-    return opts;
-}
-
-// ── Script injected into proxied HTML to patch browser APIs ──
-function getInjectedScript() {
-    return `<script data-proxy="true">
-(function(){
-    // ── Anti-frame-busting: make the page think it's top-level ──
-    // Sites like Google/YouTube check (top !== self) and redirect away.
-    try { Object.defineProperty(window, 'top',    { get: function(){ return window; } }); } catch(e){}
-    try { Object.defineProperty(window, 'parent', { get: function(){ return window; } }); } catch(e){}
-
-    // ── Suppress history API SecurityErrors ──
-    var _ps = history.pushState, _rs = history.replaceState;
-    history.pushState = function(){try{return _ps.apply(this,arguments)}catch(e){}};
-    history.replaceState = function(){try{return _rs.apply(this,arguments)}catch(e){}};
-
-    // ── Intercept location.assign / location.replace to route through proxy ──
-    try {
-        var _la = Location.prototype.assign;
-        var _lr = Location.prototype.replace;
-        Location.prototype.assign = function(url){
-            try {
-                var u = new URL(url, location.href);
-                if (u.origin !== location.origin) {
-                    return _la.call(this, '/~/' + u.href);
+// ── Fastify Server with Wisp WebSocket support ──
+const fastify = Fastify({
+    serverFactory: (handler) => {
+        return createServer()
+            .on("request", (req, res) => {
+                // No-cache for HTML/JS to prevent stale scripts from running old transport code
+                if (req.url && (req.url.endsWith('.js') || req.url.endsWith('.html') || req.url.endsWith('.mjs') || req.url === '/')) {
+                    res.setHeader("Cache-Control", "no-store, must-revalidate");
+                    res.setHeader("Pragma", "no-cache");
                 }
-            } catch(e){}
-            return _la.call(this, url);
-        };
-        Location.prototype.replace = function(url){
-            try {
-                var u = new URL(url, location.href);
-                if (u.origin !== location.origin) {
-                    return _lr.call(this, '/~/' + u.href);
-                }
-            } catch(e){}
-            return _lr.call(this, url);
-        };
-    } catch(e){}
+                handler(req, res);
+            })
+            .on("upgrade", (req, socket, head) => {
+                if (req.url.endsWith("/wisp/"))
+                    wisp.routeRequest(req, socket, head);
+                else socket.end();
+            });
+    },
+});
 
-    // ── Suppress errors from cross-origin / proxied scripts ──
-    window.addEventListener('error', function(e) {
-        if (e.message === 'Script error.' ||
-            (e.filename && (e.filename.includes('/proxy') || e.filename.includes('/~/')))) {
-            e.preventDefault();
-        }
-    });
+// ── Static file routes ──
 
-    // ── Block PresentationRequest (fails in sandbox, e.g. YouTube Cast) ──
-    try { window.PresentationRequest = undefined; } catch(e){}
-})();
-</script>`;
+// Main app (public/)
+fastify.register(fastifyStatic, {
+    root: publicPath,
+    decorateReply: true,
+});
+
+// Scramjet core bundle
+fastify.register(fastifyStatic, {
+    root: scramjetPath,
+    prefix: "/scram/",
+    decorateReply: false,
+});
+
+// libcurl transport
+fastify.register(fastifyStatic, {
+    root: libcurlPath,
+    prefix: "/libcurl/",
+    decorateReply: false,
+});
+
+// epoxy transport (ESM-compatible)
+fastify.register(fastifyStatic, {
+    root: epoxyPath,
+    prefix: "/epoxy/",
+    decorateReply: false,
+});
+
+// bare-mux
+fastify.register(fastifyStatic, {
+    root: baremuxPath,
+    prefix: "/baremux/",
+    decorateReply: false,
+});
+
+// ── 404 handler ──
+fastify.setNotFoundHandler((_req, reply) => {
+    return reply.code(404).type("text/html").send(`
+        <!DOCTYPE html>
+        <html><head><title>404</title></head>
+        <body style="background:#0a0a0a;color:#fff;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+            <div style="text-align:center">
+                <h1 style="font-size:4rem;margin:0">404</h1>
+                <p style="opacity:0.6">Page not found</p>
+                <a href="/" style="color:#6c63ff">← Go home</a>
+            </div>
+        </body></html>
+    `);
+});
+
+// ── Startup ──
+fastify.server.on("listening", () => {
+    const address = fastify.server.address();
+    console.log("🌐 kApps Web Proxy Browser running:");
+    console.log(`   http://localhost:${address.port}`);
+    console.log(`   http://${hostname()}:${address.port}`);
+});
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+function shutdown() {
+    console.log("Shutting down...");
+    fastify.close();
+    process.exit(0);
 }
 
-// ═══════════════════════════════════════════════════════
-//  /api/proxy?url=TARGET  —  Raw proxy for Service Worker
-// ═══════════════════════════════════════════════════════
-app.all('/api/proxy', async (req, res) => {
-    const targetUrl = req.query.url;
-    if (!targetUrl) return res.status(400).send('Missing ?url= parameter');
+const port = parseInt(process.env.PORT || "") || 3000;
 
-    try {
-        new URL(targetUrl);
-    } catch {
-        return res.status(400).send('Invalid URL');
-    }
-
-    try {
-        const upstream = await fetch(
-            targetUrl,
-            buildFetchOptions(req.method, req.headers, req.body)
-        );
-
-        copySafeHeaders(upstream.headers, res);
-
-        // Ensure the browser can read this response
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', '*');
-
-        const body = await upstream.buffer();
-        res.setHeader('Content-Length', body.length);
-        res.status(upstream.status).end(body);
-    } catch (err) {
-        console.error('[API Proxy Error]', err.message);
-        res.status(502).send(`Proxy Error: ${err.message}`);
-    }
-});
-
-// Handle CORS preflight for proxy API
-app.options('/api/proxy', (_req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    res.status(204).end();
-});
-
-// ═══════════════════════════════════════════════════════
-//  /~/TARGET_URL  —  Full-page proxy (navigation endpoint)
-// ═══════════════════════════════════════════════════════
-app.use(async (req, res, next) => {
-    // Only handle requests starting with /~/
-    if (!req.originalUrl.startsWith('/~/')) return next();
-
-    const targetUrl = req.originalUrl.slice(3); // Strip "/~/"
-    if (!targetUrl) return res.status(400).send('Missing target URL');
-
-    let parsed;
-    try {
-        parsed = new URL(targetUrl);
-    } catch {
-        return res.status(400).send('Invalid URL: ' + targetUrl);
-    }
-
-    try {
-        console.log(`[Page Proxy] ${req.method} ${targetUrl}`);
-
-        const upstream = await fetch(
-            targetUrl,
-            buildFetchOptions(req.method, req.headers, null)
-        );
-
-        // Determine the final URL after any redirects
-        const finalUrl = upstream.url || targetUrl;
-        let finalParsed;
-        try { finalParsed = new URL(finalUrl); } catch { finalParsed = parsed; }
-
-        copySafeHeaders(upstream.headers, res);
-
-        // Ensure this can always be displayed in our iframe
-        res.setHeader('Access-Control-Allow-Origin', '*');
-
-        const body = await upstream.buffer();
-        const contentType = upstream.headers.get('content-type') || '';
-
-        if (contentType.includes('text/html')) {
-            let html = body.toString('utf-8');
-
-            // Strip <meta> tags that cause frame-busting or CSP issues
-            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?(X-Frame-Options|Content-Security-Policy|refresh)["']?[^>]*>/gi, '');
-
-            // Inject <base> tag pointing to the original site's origin
-            // This makes relative URLs resolve to the original domain.
-            // The Service Worker intercepts these cross-origin requests!
-            const baseTag = `<base href="${finalParsed.origin}/">`;
-            const patches = getInjectedScript();
-
-            if (/<head[^>]*>/i.test(html)) {
-                html = html.replace(/<head[^>]*>/i, (m) => `${m}\n${baseTag}\n${patches}`);
-            } else if (/<html[^>]*>/i.test(html)) {
-                html = html.replace(/<html[^>]*>/i, (m) => `${m}<head>${baseTag}${patches}</head>`);
-            } else {
-                html = `${baseTag}${patches}${html}`;
-            }
-
-            const buf = Buffer.from(html, 'utf-8');
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.setHeader('Content-Length', buf.length);
-            res.status(upstream.status).end(buf);
-        } else {
-            // Non-HTML: pass through as-is
-            res.setHeader('Content-Length', body.length);
-            res.status(upstream.status).end(body);
-        }
-    } catch (err) {
-        console.error('[Page Proxy Error]', err.message);
-        res.status(502).send(`Proxy Error: ${err.message}`);
-    }
-});
-
-// ── Start ──
-app.listen(PORT, () => {
-    console.log(`🌐 Web Proxy Browser running → http://localhost:${PORT}`);
-});
+fastify.listen({ port, host: "0.0.0.0" });
