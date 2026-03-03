@@ -126,9 +126,14 @@ async function init() {
             await new Promise(resolve => {
                 navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
                 // Force claim if possible
-                navigator.serviceWorker.ready.then(reg => reg.active.postMessage({ type: 'claim' }));
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg.active) reg.active.postMessage({ type: 'claim' });
+                });
             });
         }
+
+        // Initialize Scramjet (saves config to IndexedDB) as early as possible
+        await scramjet.init();
 
         // Set up bare-mux transport — epoxy-transport is ESM + no WASM dependency
         const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
@@ -136,9 +141,6 @@ async function init() {
 
         console.log('Transport setup: /epoxy/index.mjs');
         await conn.setTransport('/epoxy/index.mjs', [wispUrl]);
-
-        // Send Scramjet config to SW
-        await scramjet.init();
 
         // Create a ScramjetFrame wrapping the proxy iframe
         scramjetFrame = scramjet.createFrame(proxyFrame);
