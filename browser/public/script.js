@@ -20,6 +20,14 @@ async function registerSW() {
         scope: __uv$config.prefix,
     });
     await navigator.serviceWorker.ready;
+
+    // The Service Worker must actually be controlling the page before bare-mux can talk to it.
+    // If it's a fresh install, `.ready` fires but `.controller` is still null until reload or claim.
+    if (!navigator.serviceWorker.controller) {
+        return new Promise((resolve) => {
+            navigator.serviceWorker.addEventListener('controllerchange', () => resolve());
+        });
+    }
 }
 
 async function init() {
@@ -29,7 +37,9 @@ async function init() {
         const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
         const wispUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + "/wisp/";
 
-        await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+        if (await connection.getTransport() !== "/epoxy/index.mjs") {
+            await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+        }
 
         isReady = true;
         banner.style.display = 'none';
