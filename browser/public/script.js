@@ -1,7 +1,12 @@
 const form = document.getElementById("searchform");
-const address = document.getElementById("address");
+const addressInput = document.getElementById("address");
 const iframe = document.getElementById("sj-frame");
 const banner = document.getElementById("banner");
+const landing = document.getElementById("landing");
+
+const btnBack = document.getElementById("btn-back");
+const btnForward = document.getElementById("btn-forward");
+const btnReload = document.getElementById("btn-reload");
 
 let isReady = false;
 
@@ -10,7 +15,6 @@ async function registerSW() {
         throw new Error("Your browser does not support service workers.");
     }
 
-    // Unregister old service workers (like the one we had at the root)
     const regs = await navigator.serviceWorker.getRegistrations();
     for (const reg of regs) {
         await reg.unregister();
@@ -19,39 +23,29 @@ async function registerSW() {
     await navigator.serviceWorker.register("/uv/sw.js", {
         scope: __uv$config.prefix,
     });
-    // Removed `await navigator.serviceWorker.ready;` because it hangs indefinitely 
-    // when the SW scope doesn't cover the root page.
 }
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
 async function init() {
     try {
-        console.log("Starting init...");
         await registerSW();
-        console.log("SW registered.");
 
         const wispUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + "/wisp/";
 
-        console.log("Checking transport...");
         if (await connection.getTransport() !== "/epoxy/index.mjs") {
-            console.log("Setting transport...");
             await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
-            console.log("Transport set.");
-        } else {
-            console.log("Transport already set.");
         }
 
         isReady = true;
         banner.style.display = 'none';
-        console.log("Init complete.");
     } catch (err) {
         console.error("Initialization error:", err);
         banner.textContent = "⚠️ Proxy failed to initialize: " + err.message;
     }
 }
 
-function search(input) {
+function normalizeUrl(input) {
     input = input.trim();
     if (!input) return "";
     try {
@@ -69,11 +63,57 @@ form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!isReady) return;
 
-    document.getElementById("landing").classList.add("hidden");
+    landing.classList.add("hidden");
     iframe.classList.remove("hidden");
 
-    const url = search(address.value);
+    let url = normalizeUrl(addressInput.value);
+
+    // Blur the input to hide keyboard on mobile
+    addressInput.blur();
+
+    // Optimistically update the address bar text for aesthetic
+    addressInput.value = url;
+
     iframe.src = __uv$config.prefix + __uv$config.encodeUrl(url);
 });
 
+// Browser Navigation Controls
+btnBack.addEventListener("click", () => {
+    if (iframe.contentWindow) iframe.contentWindow.history.back();
+});
+
+btnForward.addEventListener("click", () => {
+    if (iframe.contentWindow) iframe.contentWindow.history.forward();
+});
+
+btnReload.addEventListener("click", () => {
+    if (iframe.contentWindow) iframe.contentWindow.location.reload();
+});
+
+// Sync Address Bar with Iframe Internal Navigation
+iframe.addEventListener("load", () => {
+    try {
+        // Since the UV iframe is technically on the same origin (e.g. /uv/service/... ), 
+        // we can read its contentWindow.location!
+        const proxyPath = iframe.contentWindow.location.pathname;
+
+        // Ensure it's a proxied path
+        if (proxyPath.startsWith(__uv$config.prefix)) {
+            // Extract the encoded portion
+            const encodedUrl = proxyPath.slice(__uv$config.prefix.length);
+            // Decode the URL back to plaintext
+            const decodedUrl = __uv$config.decodeUrl(encodedUrl);
+
+            // Only update if it's not empty and different (prevents cursor jumping while typing)
+            if (decodedUrl && document.activeElement !== addressInput) {
+                addressInput.value = decodedUrl;
+            }
+        }
+    } catch (err) {
+        // Cross-origin boundaries or other edge cases may silently fail, ignore
+        console.warn("Could not sync URL:", err);
+    }
+});
+
+// Start initialization
 init();

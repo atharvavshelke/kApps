@@ -1,25 +1,29 @@
 :root {
-    --bg-color: #0d0d0d;
-    --text-color: #f5f5f5;
-    --primary: #6c63ff;
-    --primary-hover: #5548db;
-    --input-bg: #1a1a1a;
-    --border: #333;
+    --bg-desktop: #000000;
+    --browser-window: #1c1c1e;
+    --nav-bg: #2c2c2e;
+    --nav-border: #3a3a3c;
+    --text-primary: #f5f5f7;
+    --text-secondary: #a1a1a6;
+    --btn-hover: #3a3a3c;
+    --accent: #0a84ff;
 }
 
 * {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 body {
-    margin: 0;
-    padding: 0;
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    background-color: var(--bg-desktop);
+    color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    padding: 12px;
 }
 
 .banner {
@@ -36,81 +40,191 @@ body {
     z-index: 1000;
 }
 
-.landing {
+/* Browser Window Container */
+.browser-window {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    background: var(--browser-window);
+    border-radius: 12px;
+    border: 1px solid #333;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+}
+
+/* Top Navigation Bar */
+.nav-bar {
+    display: flex;
+    align-items: center;
+    background-color: var(--nav-bg);
+    padding: 8px 16px;
+    height: 52px;
+    border-bottom: 1px solid var(--nav-border);
+    gap: 16px;
+}
+
+/* Mac-style Window Controls */
+.window-controls {
+    display: flex;
+    gap: 8px;
+    margin-right: 8px;
+}
+
+.mac-btn {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.mac-btn.close {
+    background: #ff5f56;
+}
+
+.mac-btn.minimize {
+    background: #ffbd2e;
+}
+
+.mac-btn.maximize {
+    background: #27c93f;
+}
+
+/* Navigation Buttons */
+.nav-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.nav-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.nav-btn:hover {
+    background: var(--btn-hover);
+}
+
+.nav-btn i {
+    width: 16px;
+    height: 16px;
+}
+
+/* Omnibox / Address Bar Form */
+.address-bar-form {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.address-container {
+    display: flex;
+    align-items: center;
+    background: #1c1c1e;
+    border-radius: 8px;
+    padding: 0 12px;
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--nav-border);
+    transition: all 0.2s;
+}
+
+.address-container:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+}
+
+.lock-icon {
+    color: var(--text-secondary);
+    margin-right: 8px;
+}
+
+.address-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    font-family: inherit;
+    text-align: center;
+}
+
+.address-input:focus {
+    text-align: left;
+}
+
+.nav-endcap {
+    width: 100px;
+    /* Balances the flex layout against the window controls */
+}
+
+/* Viewport Area */
+.viewport-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    /* White base for websites */
+}
+
+/* Landing Splash */
+.landing-splash {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
+    background: var(--browser-window);
+    /* matches frame */
     z-index: 10;
+    transition: opacity 0.3s ease;
 }
 
-.landing.hidden {
-    display: none;
+.landing-splash.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.splash-content {
+    text-align: center;
 }
 
 .logo {
-    font-size: 4rem;
-    margin: 0;
-    letter-spacing: -1px;
-    background: linear-gradient(135deg, #fff, #a0a0a0);
+    font-size: 5rem;
+    font-weight: 600;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, #fff, #a1a1a6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
 }
 
 .subtitle {
-    opacity: 0.6;
-    margin-bottom: 2rem;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
 }
 
-.search-form {
-    display: flex;
-    width: 100%;
-    max-width: 600px;
-    gap: 8px;
-    padding: 0 16px;
-}
-
-.search-input {
-    flex: 1;
-    background: var(--input-bg);
-    border: 1px solid var(--border);
-    color: var(--text-color);
-    padding: 14px 20px;
-    border-radius: 24px;
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.2s;
-}
-
-.search-input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
-}
-
-.search-btn {
-    background: var(--primary);
-    color: #fff;
-    border: none;
-    padding: 0 24px;
-    border-radius: 24px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.search-btn:hover {
-    background: var(--primary-hover);
-}
-
-iframe {
+/* Proxy Iframe */
+.viewport-frame {
     flex: 1;
     width: 100%;
+    height: 100%;
     border: none;
-    background: #fff;
 }
 
-iframe.hidden {
+.viewport-frame.hidden {
     display: none;
 }

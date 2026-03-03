@@ -7,6 +7,14 @@
     <title>kApps - Proxy</title>
     <link rel="stylesheet" href="/style.css">
 
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Feather Icons for UI -->
+    <script src="https://unpkg.com/feather-icons"></script>
+
     <script src="/baremux/index.js" defer></script>
     <script src="/uv/uv.bundle.js" defer></script>
     <script src="/uv.config.js" defer></script>
@@ -16,18 +24,57 @@
 <body>
     <div id="banner" class="banner">Initializing Web Proxy Engine...</div>
 
-    <div id="landing" class="landing">
-        <h1 class="logo">kApps</h1>
-        <p class="subtitle">Secure, fast, uncensored web proxy.</p>
+    <!-- The actual browser window UI -->
+    <div id="browser-ui" class="browser-window">
+        <!-- Top Navigation Bar -->
+        <div class="nav-bar">
+            <!-- Window controls purely aesthetic -> classic macos style -->
+            <div class="window-controls">
+                <div class="mac-btn close"></div>
+                <div class="mac-btn minimize"></div>
+                <div class="mac-btn maximize"></div>
+            </div>
 
-        <form id="searchform" class="search-form">
-            <input type="text" id="address" class="search-input" placeholder="Enter URL or search term..."
-                autocomplete="off">
-            <button type="submit" class="search-btn">Go</button>
-        </form>
+            <!-- Browser Navigation (Back/Forward/Reload) -->
+            <div class="nav-controls">
+                <button type="button" id="btn-back" class="nav-btn" title="Go back"><i
+                        data-feather="arrow-left"></i></button>
+                <button type="button" id="btn-forward" class="nav-btn" title="Go forward"><i
+                        data-feather="arrow-right"></i></button>
+                <button type="button" id="btn-reload" class="nav-btn" title="Reload page"><i
+                        data-feather="rotate-cw"></i></button>
+            </div>
+
+            <!-- Omnibox (Address Bar) -->
+            <form id="searchform" class="address-bar-form">
+                <div class="address-container">
+                    <i data-feather="lock" class="lock-icon" width="14" height="14"></i>
+                    <input type="text" id="address" class="address-input" placeholder="Search Google or type a URL..."
+                        autocomplete="off">
+                </div>
+            </form>
+
+            <div class="nav-endcap"></div>
+        </div>
+
+        <!-- The webpage viewport -->
+        <div class="viewport-wrapper">
+            <!-- Landing Splash (Shown when no active URL is present) -->
+            <div id="landing" class="landing-splash">
+                <div class="splash-content">
+                    <h1 class="logo">kApps</h1>
+                    <p class="subtitle">Secure, fast, uncensored proxy layer.</p>
+                </div>
+            </div>
+
+            <iframe id="sj-frame" class="viewport-frame hidden"></iframe>
+        </div>
     </div>
 
-    <iframe id="sj-frame" class="hidden"></iframe>
+    <!-- Initialize icons -->
+    <script>
+        feather.replace();
+    </script>
 </body>
 
 </html>
