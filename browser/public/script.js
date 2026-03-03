@@ -6,78 +6,117 @@ document.addEventListener('DOMContentLoaded', () => {
     const reloadBtn = document.getElementById('reload-btn');
     const browserFrame = document.getElementById('browser-frame');
     const loadingOverlay = document.getElementById('loading-overlay');
+    const swBanner = document.getElementById('sw-banner');
 
-    // Keep history of visited URLs
+    // History stack
     let history = [];
     let historyIndex = -1;
 
-    // Base URL for the proxy server (Relative path works because we are on a unified origin)
-    const PROXY_URL = '/proxy?url=';
+    // ── Service Worker Registration ──
+    // We MUST wait for the SW to be active before loading anything,
+    // otherwise cross-origin requests won't be intercepted.
+    let swReady = false;
 
-    function isUrlValid(string) {
-        try {
-            new URL(string);
-            return true;
-        } catch (_) {
-            return false;
+    async function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) {
+            console.warn('Service Workers not supported — proxy will have limited functionality');
+            swBanner.style.display = 'none';
+            swReady = true;
+            loadInitial();
+            return;
         }
+
+        try {
+            const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            console.log('Service Worker registered:', reg.scope);
+
+            // Wait for the SW to become active
+            if (reg.active) {
+                onSwReady();
+            } else {
+                const sw = reg.installing || reg.waiting;
+                if (sw) {
+                    sw.addEventListener('statechange', () => {
+                        if (sw.state === 'activated') onSwReady();
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Service Worker registration failed:', err);
+            swBanner.textContent = 'Proxy engine failed to start';
+            // Fall back to direct loading
+            swReady = true;
+            loadInitial();
+        }
+    }
+
+    function onSwReady() {
+        console.log('✅ Service Worker active — proxy engine ready');
+        swReady = true;
+        swBanner.style.display = 'none';
+        loadInitial();
+    }
+
+    // ── URL helpers ──
+    function isUrlValid(str) {
+        try { new URL(str); return true; } catch { return false; }
     }
 
     function formatUrl(input) {
         input = input.trim();
-        // If it doesn't start with http/https, try to see if it's a domain or search query
         if (!input.startsWith('http://') && !input.startsWith('https://')) {
-            // Very basic heuristic for a domain
             if (input.includes('.') && !input.includes(' ')) {
                 return 'https://' + input;
-            } else {
-                // Treat as google search
-                return 'https://www.google.com/search?q=' + encodeURIComponent(input);
             }
+            return 'https://www.google.com/search?q=' + encodeURIComponent(input);
         }
         return input;
     }
 
+    // ── Load a URL through the proxy ──
     function loadUrl(targetUrl, pushToHistory = true) {
         if (!targetUrl) return;
 
         const formattedUrl = formatUrl(targetUrl);
         urlInput.value = formattedUrl;
 
-        // Ensure we only try to load valid URLs through the proxy
-        if (isUrlValid(formattedUrl)) {
-            // Show loading overlay
-            loadingOverlay.classList.remove('hidden');
-
-            const proxyTarget = PROXY_URL + encodeURIComponent(formattedUrl);
-            console.log("Loading via proxy:", proxyTarget);
-
-            // Note: because it's an iframe, we can't easily detect when it actually finishes loading
-            // due to CORS issues if it navigates away, but we can detect the 'load' event on the iframe itself.
-            browserFrame.src = proxyTarget;
-
-            if (pushToHistory) {
-                // If we're not at the end of the history array, truncate it
-                if (historyIndex < history.length - 1) {
-                    history = history.slice(0, historyIndex + 1);
-                }
-                history.push(formattedUrl);
-                historyIndex++;
-            }
-        } else {
-            console.error("Invalid URL attempted:", formattedUrl);
+        if (!isUrlValid(formattedUrl)) {
+            console.error('Invalid URL:', formattedUrl);
+            return;
         }
+
+        // Show loading
+        loadingOverlay.classList.remove('hidden');
+
+        // Use the /~/ route — the server fetches the page, injects <base> + patches,
+        // and the Service Worker handles all sub-resource requests
+        const proxiedPath = '/~/' + formattedUrl;
+        console.log('Loading:', proxiedPath);
+        browserFrame.src = proxiedPath;
+
+        if (pushToHistory) {
+            if (historyIndex < history.length - 1) {
+                history = history.slice(0, historyIndex + 1);
+            }
+            history.push(formattedUrl);
+            historyIndex++;
+        }
+
+        updateNavButtons();
     }
 
-    // Event Listeners
-    goBtn.addEventListener('click', () => {
-        loadUrl(urlInput.value);
-    });
+    function updateNavButtons() {
+        backBtn.disabled = historyIndex <= 0;
+        forwardBtn.disabled = historyIndex >= history.length - 1;
+        backBtn.style.opacity = historyIndex > 0 ? '1' : '0.4';
+        forwardBtn.style.opacity = historyIndex < history.length - 1 ? '1' : '0.4';
+    }
+
+    // ── Event Listeners ──
+    goBtn.addEventListener('click', () => loadUrl(urlInput.value));
 
     urlInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            loadUrl(urlInput.value);
-        }
+        if (e.key === 'Enter') loadUrl(urlInput.value);
     });
 
     backBtn.addEventListener('click', () => {
@@ -95,19 +134,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     reloadBtn.addEventListener('click', () => {
-        if (historyIndex >= 0) {
-            loadUrl(history[historyIndex], false);
-        }
+        if (historyIndex >= 0) loadUrl(history[historyIndex], false);
     });
 
     // Handle iframe load completion
     browserFrame.addEventListener('load', () => {
         loadingOverlay.classList.add('hidden');
+
+        // Try to update the URL bar with the actual URL the iframe navigated to
+        try {
+            const iframePath = browserFrame.contentWindow.location.pathname;
+            if (iframePath && iframePath.startsWith('/~/')) {
+                const realUrl = iframePath.slice(3) + browserFrame.contentWindow.location.search;
+                if (realUrl && realUrl !== urlInput.value) {
+                    urlInput.value = realUrl;
+                }
+            }
+        } catch {
+            // Cross-origin access blocked — that's fine
+        }
     });
 
-    // Load initial URL
-    const initialUrl = urlInput.value;
-    if (initialUrl) {
-        loadUrl(initialUrl);
+    // ── Initial load ──
+    function loadInitial() {
+        const initialUrl = urlInput.value;
+        if (initialUrl) loadUrl(initialUrl);
+        updateNavButtons();
     }
+
+    // Go!
+    registerServiceWorker();
 });

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Proxy Browser</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -39,13 +40,19 @@
             </div>
         </div>
 
+        <!-- SW Status Banner (hidden once active) -->
+        <div id="sw-banner" class="sw-banner">
+            <div class="spinner-small"></div>
+            <span>Initializing proxy engine…</span>
+        </div>
+
         <!-- Main Content Area -->
         <div class="browser-content">
             <div id="loading-overlay" class="hidden">
                 <div class="spinner"></div>
             </div>
             <iframe id="browser-frame" src="about:blank"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"></iframe>
         </div>
     </div>
 
