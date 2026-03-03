@@ -131,6 +131,22 @@ async function init() {
     } catch (err) {
         console.error('Proxy init error:', err);
         swBanner.querySelector('span').textContent = '⚠️ Proxy engine error: ' + err.message;
+
+        // If the IDB is corrupted from previous versions, clear it and ask the user to reload
+        if (err.name === 'InvalidStateError' || err.message.includes('config') || err.message.includes('object store')) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for (const reg of regs) {
+                    reg.unregister();
+                }
+                const req = indexedDB.deleteDatabase('$scramjet');
+                req.onsuccess = () => {
+                    swBanner.querySelector('span').innerHTML = '⚠️ Corrupted proxy database cleared. <a href="javascript:window.location.reload()" style="color:var(--primary)">Click here to reload</a>.';
+                };
+                req.onblocked = () => {
+                    swBanner.querySelector('span').innerHTML = '⚠️ Corrupted proxy database. Please close other tabs and <a href="javascript:window.location.reload()" style="color:var(--primary)">reload</a>.';
+                };
+            });
+        }
     }
 }
 
