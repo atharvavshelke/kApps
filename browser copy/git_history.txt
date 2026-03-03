@@ -1,0 +1,41 @@
+86f8ed2 Downgrade epoxy-transport to fix Wasm headers crash
+628ad7b Fix BareMux race condition by eagerly instantiating connection
+b80d2bf Fix Bare-Mux SharedWorker Cross-Origin Isolation
+464170d Fix Bare-Mux race condition on SW controller
+5b6b267 Fix UV config ReferenceError in SW
+4dc256b Fix UV variable redeclaration crash
+9c9f9dd Fix overwritten UV SW imports
+5950227 Use absolute paths for UV Service Worker imports
+d0d6181 Fix UV config loading paths
+278e100 Fix UV service worker scope
+ce26662 Swap proxy engine to Ultraviolet
+397a9ed Complete proxy engine rewrite 3
+81812de Complete proxy engine rewrite 2
+8fd8f3b Complete proxy engine rewrite
+5d9595a Wipe IDB cleanly before init
+7eb42db Rescue sw.js from IDB crash
+3a34049 16
+bcf8967 15
+ba6aa93 14
+b8252fc 13
+66020bb 12
+ee46e25 11
+b015718 10
+faae959 9
+0b1c4a8 8
+c11e7bf 7
+4e1dc0b fix: remove infinite-reload loop and counterproductive IDB delete on every load
+fcb203f 6
+fed9ace 5
+39148e4 4
+4c76bcd 3
+34325cf Service Worker Proxy
+a7f1f6b Fix proxy: use node-fetch@2 for compatibility, fix redirect loop
+8afc619 Fix proxy: follow redirects, inject base tag into HTML, decompress server-side
+d22056c Fix proxy: decompress gzip/brotli server-side before sending to client
+b1c46e9 Rewrite proxy with native fetch to fix IP leakage
+a5670ac Default URL Changed
+7cadd25 Fix IP leakage by stripping X-Forwarded headers
+556aa8f Shift to complete Render deployment (unified origin)
+b753211 Update proxy URL for hybrid deployment
+4882a03 1
