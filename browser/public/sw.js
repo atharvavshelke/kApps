@@ -42,7 +42,12 @@ async function handleRequest(event) {
             return await scramjet.fetch(event);
         }
     } catch (err) {
-        console.error("[sw] Scramjet interception error:", err);
+        if (err && (err.name === "NotFoundError" || err.name === "InvalidStateError" || String(err).includes("object store name"))) {
+            console.warn("[sw] Stale IDB detected — wiping $scramjet DB.", err.message);
+            try { await nukeStaleIDB(); } catch (_) { /* ignore */ }
+        } else {
+            console.error("[sw] Scramjet interception error:", err);
+        }
         return fetch(event.request);
     }
 

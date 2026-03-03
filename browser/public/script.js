@@ -133,7 +133,18 @@ async function init() {
         }
 
         // Initialize Scramjet (saves config to IndexedDB) as early as possible
-        await scramjet.init();
+        try {
+            await scramjet.init();
+        } catch (e) {
+            console.warn('Wiping stale $scramjet IDB and retrying...', e);
+            await new Promise((resolve) => {
+                const req = indexedDB.deleteDatabase('$scramjet');
+                req.onsuccess = resolve;
+                req.onerror = resolve;
+                req.onblocked = resolve;
+            });
+            await scramjet.init();
+        }
 
         // Set up bare-mux transport — epoxy-transport is ESM + no WASM dependency
         const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
