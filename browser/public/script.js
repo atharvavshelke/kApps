@@ -19,24 +19,32 @@ async function registerSW() {
     await navigator.serviceWorker.register("/uv/sw.js", {
         scope: __uv$config.prefix,
     });
-    // Wait for the Service Worker to officially finish installing before we hand off the transport.
-    await navigator.serviceWorker.ready;
+    // Removed `await navigator.serviceWorker.ready;` because it hangs indefinitely 
+    // when the SW scope doesn't cover the root page.
 }
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
 async function init() {
     try {
+        console.log("Starting init...");
         await registerSW();
+        console.log("SW registered.");
 
         const wispUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + "/wisp/";
 
+        console.log("Checking transport...");
         if (await connection.getTransport() !== "/epoxy/index.mjs") {
+            console.log("Setting transport...");
             await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+            console.log("Transport set.");
+        } else {
+            console.log("Transport already set.");
         }
 
         isReady = true;
         banner.style.display = 'none';
+        console.log("Init complete.");
     } catch (err) {
         console.error("Initialization error:", err);
         banner.textContent = "⚠️ Proxy failed to initialize: " + err.message;

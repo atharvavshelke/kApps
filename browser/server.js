@@ -12,7 +12,7 @@ const epoxyPath = fileURLToPath(new URL("./node_modules/@mercuryworkshop/epoxy-t
 const publicPath = fileURLToPath(new URL("./public/", import.meta.url));
 
 // ── Wisp Configuration ──
-logging.set_level(logging.NONE);
+logging.set_level(logging.DEBUG);
 
 // ── Fastify Server with Wisp WebSocket support ──
 const fastify = Fastify({
