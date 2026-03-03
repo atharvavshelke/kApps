@@ -24,11 +24,27 @@ app.use('/proxy', (req, res, next) => {
         return createProxyMiddleware({
             target: target.origin,
             changeOrigin: true,
+            xfwd: false, // Do not add x-forwarded headers
             pathRewrite: (path, req) => {
                 // Keep the path of the target URL, not the proxy path
                 return target.pathname + target.search;
             },
+            onProxyReq: (proxyReq, req, res) => {
+                console.log(`[Proxying] ${req.method} ${targetUrl}`);
+
+                // Strip headers that might leak client info
+                proxyReq.removeHeader('x-forwarded-for');
+                proxyReq.removeHeader('x-forwarded-host');
+                proxyReq.removeHeader('x-forwarded-proto');
+                proxyReq.removeHeader('x-real-ip');
+
+                // Optional: You could also sanitize User-Agent or Referer if desired
+                // proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+            },
             onProxyRes: (proxyRes, req, res) => {
+                // Add a header to confirm successful proxying
+                proxyRes.headers['X-Proxied-By'] = 'kApps-Web-Browser';
+
                 // Remove headers that prevent embedding in an iframe
                 delete proxyRes.headers['x-frame-options'];
                 delete proxyRes.headers['content-security-policy'];
