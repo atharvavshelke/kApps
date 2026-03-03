@@ -4,7 +4,11 @@ const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 
 async function handleRequest(event) {
-    await scramjet.loadConfig();
+    try {
+        await scramjet.loadConfig();
+    } catch (err) {
+        return fetch(event.request);
+    }
     if (scramjet.route(event)) {
         return scramjet.fetch(event);
     }

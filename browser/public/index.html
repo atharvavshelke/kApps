@@ -1,28 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>kApps - Proxy</title>
     <link rel="stylesheet" href="/style.css">
-    
-    <script src="/baremux/bare.cjs" defer></script>
+
+    <script src="/baremux/index.js" defer></script>
     <script src="/scram/scramjet.all.js" defer></script>
     <script src="/script.js" defer></script>
 </head>
+
 <body>
     <div id="banner" class="banner">Initializing Web Proxy Engine...</div>
-    
+
     <div id="landing" class="landing">
         <h1 class="logo">kApps</h1>
         <p class="subtitle">Secure, fast, uncensored web proxy.</p>
-        
+
         <form id="searchform" class="search-form">
-            <input type="text" id="address" class="search-input" placeholder="Enter URL or search term..." autocomplete="off">
+            <input type="text" id="address" class="search-input" placeholder="Enter URL or search term..."
+                autocomplete="off">
             <button type="submit" class="search-btn">Go</button>
         </form>
     </div>
-    
+
     <iframe id="sj-frame" class="hidden"></iframe>
 </body>
+
 </html>
