@@ -12,7 +12,13 @@ self.addEventListener("message", (event) => {
 
 
 async function handleRequest(event) {
-    await scramjet.loadConfig();
+    try {
+        await scramjet.loadConfig();
+    } catch (err) {
+        // If config is missing or corrupted, serve the file natively without proxying.
+        // The frontend script will detect the IDB corruption and prompt the user to repair it.
+        return fetch(event.request);
+    }
     if (scramjet.route(event)) {
         return scramjet.fetch(event);
     }
