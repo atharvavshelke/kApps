@@ -112,15 +112,16 @@ async function init() {
         // Wait for the service worker to be fully ready
         await navigator.serviceWorker.ready;
 
+        // Send Scramjet config to SW (This must happen BEFORE bare-mux tries to download its transport script, or the SW will crash)
+        await scramjet.init();
+
         // Set up bare-mux transport — epoxy-transport is ESM + no WASM dependency
         const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
         const wispUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/wisp/`;
 
         console.log('Transport setup: /epoxy/index.mjs');
-        await conn.setTransport('/epoxy/index.mjs', [wispUrl]);
-
-        // Send Scramjet config to SW (Note: this must happen after SW is ready and bare-mux is set up)
-        await scramjet.init();
+        // epoxy-transport expects an object with a 'wisp' property
+        await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
 
         // Create a ScramjetFrame wrapping the proxy iframe
         scramjetFrame = scramjet.createFrame(proxyFrame);
