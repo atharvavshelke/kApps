@@ -38,7 +38,7 @@ async function handleRequest(event) {
             return fetch(event.request);
         }
 
-        if (scramjet.route(event)) {
+        if (scramjet.route(event) || url.pathname.startsWith(scramjet.config.prefix)) {
             return await scramjet.fetch(event);
         }
     } catch (err) {
