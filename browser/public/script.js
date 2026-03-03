@@ -96,6 +96,16 @@ function syncAddressBar() {
 
 proxyFrame.addEventListener('load', syncAddressBar);
 
+// ── Wipe stale $scramjet IDB (schema may differ between Scramjet versions) ──
+function deleteStaleIDB() {
+    return new Promise((resolve) => {
+        const req = indexedDB.deleteDatabase("$scramjet");
+        req.onsuccess = resolve;
+        req.onerror = resolve;   // proceed even on error
+        req.onblocked = resolve; // proceed even if blocked
+    });
+}
+
 // ── Service Worker + Scramjet init ──
 async function init() {
     if (!('serviceWorker' in navigator)) {
@@ -104,6 +114,9 @@ async function init() {
     }
 
     try {
+        // Wipe stale $scramjet IDB before touching the SW so schema is always fresh
+        await deleteStaleIDB();
+
         // Force-unregister any stale Service Workers (prevents old SW versions from persisting)
         const existingRegs = await navigator.serviceWorker.getRegistrations();
         for (const reg of existingRegs) {
