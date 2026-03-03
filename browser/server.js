@@ -1,11 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const zlib = require('zlib');
-const { promisify } = require('util');
-
-const gunzip = promisify(zlib.gunzip);
-const inflate = promisify(zlib.inflate);
-const brotliDecompress = promisify(zlib.brotliDecompress);
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.static('public'));
 
-// Response headers that we remove before sending to the client
+// Response headers to strip before sending to client
 const BLOCKED_RESPONSE_HEADERS = new Set([
     'x-frame-options',
     'content-security-policy',
@@ -25,20 +20,9 @@ const BLOCKED_RESPONSE_HEADERS = new Set([
     'cross-origin-embedder-policy',
     'cross-origin-resource-policy',
     'transfer-encoding',
-    'content-encoding', // We decompress server-side and send raw
-    'content-length',   // We recalculate after decompression
+    'content-encoding',
+    'content-length',
 ]);
-
-async function decompressBuffer(buffer, encoding) {
-    try {
-        if (encoding.includes('br')) return await brotliDecompress(buffer);
-        if (encoding.includes('gzip')) return await gunzip(buffer);
-        if (encoding.includes('deflate')) return await inflate(buffer);
-    } catch (e) {
-        console.warn('[Proxy] Decompression failed, using raw buffer:', e.message);
-    }
-    return buffer;
-}
 
 app.use('/proxy', async (req, res) => {
     const targetUrl = req.query.url;
@@ -54,77 +38,59 @@ app.use('/proxy', async (req, res) => {
         return res.status(400).send('Invalid URL.');
     }
 
-    // Build clean outbound headers — no identifying info
-    const outboundHeaders = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Host': parsedUrl.host,
-        'Connection': 'keep-alive',
-        // Intentionally omitting all forwarding headers and client identity headers
-    };
-
     try {
         console.log(`[Proxy] ${req.method} ${targetUrl}`);
 
-        const fetchOptions = {
+        const response = await fetch(targetUrl, {
             method: req.method,
-            headers: outboundHeaders,
-            redirect: 'follow', // Let fetch handle redirects automatically
-        };
+            headers: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                // Do NOT set Host manually — node-fetch handles it, including after redirects
+            },
+            redirect: 'follow',
+            follow: 10,
+            // Let node-fetch handle decompression automatically
+        });
 
-        if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-            fetchOptions.body = req;
-            fetchOptions.duplex = 'half';
-        }
-
-        const targetRes = await fetch(targetUrl, fetchOptions);
-        const finalUrl = targetRes.url; // URL after redirects
+        const finalUrl = response.url || targetUrl;
         let parsedFinalUrl;
-        try {
-            parsedFinalUrl = new URL(finalUrl);
-        } catch {
-            parsedFinalUrl = parsedUrl;
-        }
+        try { parsedFinalUrl = new URL(finalUrl); } catch { parsedFinalUrl = parsedUrl; }
 
         // Copy safe response headers
-        for (const [key, value] of targetRes.headers.entries()) {
+        response.headers.forEach((value, key) => {
             if (!BLOCKED_RESPONSE_HEADERS.has(key.toLowerCase())) {
-                try { res.setHeader(key, value); } catch { }
+                try { res.setHeader(key, value); } catch (e) { }
             }
-        }
+        });
+
         res.setHeader('Access-Control-Allow-Origin', '*');
 
-        // Read and decompress body
-        const rawBuffer = Buffer.from(await targetRes.arrayBuffer());
-        const encoding = targetRes.headers.get('content-encoding') || '';
-        const body = await decompressBuffer(rawBuffer, encoding);
+        // Read body (node-fetch auto-decompresses by default)
+        const body = await response.buffer();
 
-        // For HTML responses: inject <base> tag so relative URLs resolve correctly
-        const contentType = targetRes.headers.get('content-type') || '';
+        // For HTML: inject <base> tag so relative URLs resolve to original site
+        const contentType = response.headers.get('content-type') || '';
         if (contentType.includes('text/html')) {
             let html = body.toString('utf-8');
             const baseTag = `<base href="${parsedFinalUrl.origin}/">`;
-            // Inject after <head> if it exists, otherwise at the top
-            if (html.includes('<head>')) {
-                html = html.replace('<head>', `<head>${baseTag}`);
-            } else if (html.includes('<head ')) {
-                html = html.replace(/<head[^>]*>/, (m) => `${m}${baseTag}`);
+            if (/<head[^>]*>/i.test(html)) {
+                html = html.replace(/<head[^>]*>/i, (m) => `${m}${baseTag}`);
             } else {
                 html = baseTag + html;
             }
             const htmlBuffer = Buffer.from(html, 'utf-8');
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Content-Length', htmlBuffer.length);
-            res.status(targetRes.status).end(htmlBuffer);
+            res.status(response.status).end(htmlBuffer);
         } else {
             res.setHeader('Content-Length', body.length);
-            res.status(targetRes.status).end(body);
+            res.status(response.status).end(body);
         }
 
     } catch (err) {
-        console.error('[Proxy Error]', err);
+        console.error('[Proxy Error]', err.message);
         res.status(502).send(`Proxy Error: ${err.message}`);
     }
 });
