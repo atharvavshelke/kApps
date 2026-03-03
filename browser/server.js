@@ -156,6 +156,10 @@ app.use(async (req, res, next) => {
 
         copySafeHeaders(upstream.headers, res);
 
+        // Ensure this can always be displayed in our iframe
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('X-Frame-Options', 'ALLOWALL');
+
         const body = await upstream.buffer();
         const contentType = upstream.headers.get('content-type') || '';
 

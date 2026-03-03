@@ -5,6 +5,29 @@
 
 const PROXY_API = '/api/proxy?url=';
 
+// ── Telemetry / tracking patterns to silently block ──
+// These requests are non-essential and always fail when proxied,
+// flooding the console with 502 errors.
+const BLOCKED_PATTERNS = [
+    '/gen_204',
+    '/client_204',
+    '/log?format=json',
+    '/httpservice/retry/',
+    'play.google.com/log',
+    'ogads-pa.clients6.google.com',
+    '.doubleclick.net/',
+    'adservice.google.',
+    '/pagead/',
+    'google-analytics.com',
+    'googletagmanager.com',
+    'facebook.com/tr',
+    '/shared_dict/',
+];
+
+function isBlockedUrl(url) {
+    return BLOCKED_PATTERNS.some(p => url.includes(p));
+}
+
 self.addEventListener('install', () => {
     // Activate immediately, don't wait for old SW to release
     self.skipWaiting();
@@ -24,6 +47,12 @@ self.addEventListener('fetch', (event) => {
         // /~/ page requests → handled by server
         // /api/ requests → handled by server
         // static files → handled by server
+        return;
+    }
+
+    // ── Block telemetry / tracking requests ──
+    if (isBlockedUrl(event.request.url)) {
+        event.respondWith(new Response(null, { status: 204 }));
         return;
     }
 
