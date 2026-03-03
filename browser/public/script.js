@@ -9,8 +9,15 @@ async function registerSW() {
     if (!("serviceWorker" in navigator)) {
         throw new Error("Your browser does not support service workers.");
     }
-    await navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
+
+    // Unregister old service workers (like the one we had at the root)
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) {
+        await reg.unregister();
+    }
+
+    await navigator.serviceWorker.register("/uv/sw.js", {
+        scope: __uv$config.prefix,
     });
     await navigator.serviceWorker.ready;
 }
