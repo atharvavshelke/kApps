@@ -19,22 +19,16 @@ async function registerSW() {
     await navigator.serviceWorker.register("/uv/sw.js", {
         scope: __uv$config.prefix,
     });
+    // Wait for the Service Worker to officially finish installing before we hand off the transport.
     await navigator.serviceWorker.ready;
-
-    // The Service Worker must actually be controlling the page before bare-mux can talk to it.
-    // If it's a fresh install, `.ready` fires but `.controller` is still null until reload or claim.
-    if (!navigator.serviceWorker.controller) {
-        return new Promise((resolve) => {
-            navigator.serviceWorker.addEventListener('controllerchange', () => resolve());
-        });
-    }
 }
+
+const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
 async function init() {
     try {
         await registerSW();
 
-        const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
         const wispUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + "/wisp/";
 
         if (await connection.getTransport() !== "/epoxy/index.mjs") {
