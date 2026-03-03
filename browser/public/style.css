@@ -1,0 +1,201 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #1e1e2f 0%, #11111e 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    color: #e0e0e0;
+}
+
+.browser-container {
+    width: 95vw;
+    height: 90vh;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Browser Toolbar / Chrome */
+.browser-toolbar {
+    background-color: #2b2b36;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #1e1e24;
+    user-select: none;
+}
+
+/* macOS style window controls */
+.window-controls {
+    display: flex;
+    gap: 8px;
+    margin-right: 20px;
+}
+
+.control {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.control:hover {
+    opacity: 0.8;
+}
+
+.close { background-color: #ff5f56; }
+.minimize { background-color: #ffbd2e; }
+.maximize { background-color: #27c93f; }
+
+/* Navigation Buttons */
+.navigation-controls {
+    display: flex;
+    gap: 4px;
+    margin-right: 12px;
+}
+
+.nav-btn {
+    background: transparent;
+    border: none;
+    color: #a0a0b0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.nav-btn:active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Address Bar */
+.address-bar-container {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    background-color: #1a1a20;
+    border-radius: 20px;
+    height: 34px;
+    padding: 0 16px;
+    margin: 0 12px;
+    border: 1px solid #3a3a48;
+    transition: all 0.3s ease;
+}
+
+.address-bar-container:focus-within {
+    border-color: #5c5cff;
+    box-shadow: 0 0 0 2px rgba(92, 92, 255, 0.2);
+    background-color: #1e1e26;
+}
+
+.security-icon {
+    color: #4CAF50;
+    font-size: 12px;
+    margin-right: 8px;
+}
+
+.address-bar {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    width: 100%;
+}
+
+.address-bar::placeholder {
+    color: #707080;
+}
+
+.go-btn {
+    background: transparent;
+    border: none;
+    color: #707080;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.go-btn:hover {
+    color: #ffffff;
+}
+
+/* Right Controls */
+.extensions-controls {
+    display: flex;
+    gap: 4px;
+}
+
+/* Browser Content Area */
+.browser-content {
+    flex-grow: 1;
+    position: relative;
+    background-color: #ffffff;
+}
+
+#browser-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    background-color: #ffffff;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    transition: opacity 0.3s ease;
+}
+
+#loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(92, 92, 255, 0.2);
+    border-top: 4px solid #5c5cff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
