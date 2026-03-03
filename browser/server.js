@@ -19,6 +19,10 @@ const fastify = Fastify({
     serverFactory: (handler) => {
         return createServer()
             .on("request", (req, res) => {
+                // Enable Cross-Origin Isolation for SharedArrayBuffer (required by Bare-Mux Epoxy Wasm)
+                res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+                res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+
                 // Prevent caching of our frontend scripts so changes immediately apply
                 if (req.url && (req.url.endsWith('.js') || req.url.endsWith('.html') || req.url.endsWith('.mjs') || req.url === '/')) {
                     res.setHeader("Cache-Control", "no-store, must-revalidate");
