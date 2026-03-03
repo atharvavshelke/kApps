@@ -11,9 +11,11 @@ const PROXY_API = '/api/proxy?url=';
 const BLOCKED_PATTERNS = [
     '/gen_204',
     '/client_204',
+    '/generate_204',
     '/log?format=json',
     '/httpservice/retry/',
     'play.google.com/log',
+    'jnn-pa.googleapis.com',
     'ogads-pa.clients6.google.com',
     '.doubleclick.net/',
     'adservice.google.',
@@ -22,6 +24,7 @@ const BLOCKED_PATTERNS = [
     'googletagmanager.com',
     'facebook.com/tr',
     '/shared_dict/',
+    'atsptp.com/',
 ];
 
 function isBlockedUrl(url) {

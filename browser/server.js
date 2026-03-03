@@ -65,17 +65,50 @@ function buildFetchOptions(method, reqHeaders, body) {
 function getInjectedScript() {
     return `<script data-proxy="true">
 (function(){
-    // Suppress history API SecurityErrors
+    // ── Anti-frame-busting: make the page think it's top-level ──
+    // Sites like Google/YouTube check (top !== self) and redirect away.
+    try { Object.defineProperty(window, 'top',    { get: function(){ return window; } }); } catch(e){}
+    try { Object.defineProperty(window, 'parent', { get: function(){ return window; } }); } catch(e){}
+
+    // ── Suppress history API SecurityErrors ──
     var _ps = history.pushState, _rs = history.replaceState;
     history.pushState = function(){try{return _ps.apply(this,arguments)}catch(e){}};
     history.replaceState = function(){try{return _rs.apply(this,arguments)}catch(e){}};
 
-    // Suppress errors from cross-origin scripts
+    // ── Intercept location.assign / location.replace to route through proxy ──
+    try {
+        var _la = Location.prototype.assign;
+        var _lr = Location.prototype.replace;
+        Location.prototype.assign = function(url){
+            try {
+                var u = new URL(url, location.href);
+                if (u.origin !== location.origin) {
+                    return _la.call(this, '/~/' + u.href);
+                }
+            } catch(e){}
+            return _la.call(this, url);
+        };
+        Location.prototype.replace = function(url){
+            try {
+                var u = new URL(url, location.href);
+                if (u.origin !== location.origin) {
+                    return _lr.call(this, '/~/' + u.href);
+                }
+            } catch(e){}
+            return _lr.call(this, url);
+        };
+    } catch(e){}
+
+    // ── Suppress errors from cross-origin / proxied scripts ──
     window.addEventListener('error', function(e) {
-        if (e.message === 'Script error.' || (e.filename && e.filename.includes('/proxy'))) {
+        if (e.message === 'Script error.' ||
+            (e.filename && (e.filename.includes('/proxy') || e.filename.includes('/~/')))) {
             e.preventDefault();
         }
     });
+
+    // ── Block PresentationRequest (fails in sandbox, e.g. YouTube Cast) ──
+    try { window.PresentationRequest = undefined; } catch(e){}
 })();
 </script>`;
 }
@@ -158,13 +191,15 @@ app.use(async (req, res, next) => {
 
         // Ensure this can always be displayed in our iframe
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('X-Frame-Options', 'ALLOWALL');
 
         const body = await upstream.buffer();
         const contentType = upstream.headers.get('content-type') || '';
 
         if (contentType.includes('text/html')) {
             let html = body.toString('utf-8');
+
+            // Strip <meta> tags that cause frame-busting or CSP issues
+            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?(X-Frame-Options|Content-Security-Policy|refresh)["']?[^>]*>/gi, '');
 
             // Inject <base> tag pointing to the original site's origin
             // This makes relative URLs resolve to the original domain.
