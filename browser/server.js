@@ -1,5 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const zlib = require('zlib');
+const { promisify } = require('util');
+
+const gunzip = promisify(zlib.gunzip);
+const inflate = promisify(zlib.inflate);
+const brotliDecompress = promisify(zlib.brotliDecompress);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,25 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.static('public'));
 
-// Headers that we NEVER want to pass to the target site
-const BLOCKED_REQUEST_HEADERS = new Set([
-    'x-forwarded-for',
-    'x-forwarded-host',
-    'x-forwarded-proto',
-    'x-forwarded-port',
-    'x-real-ip',
-    'x-original-ip',
-    'cf-connecting-ip',
-    'true-client-ip',
-    'forwarded',
-    'via',
-    'host',
-    'connection',
-    'cookie',   // don't pass client's cookies to target
-    'referer',  // don't reveal where we came from
-]);
-
-// Headers from the target we don't want to pass back to the client
+// Headers from the target we strip before forwarding to client
 const BLOCKED_RESPONSE_HEADERS = new Set([
     'x-frame-options',
     'content-security-policy',
@@ -36,7 +24,8 @@ const BLOCKED_RESPONSE_HEADERS = new Set([
     'cross-origin-opener-policy',
     'cross-origin-embedder-policy',
     'cross-origin-resource-policy',
-    'transfer-encoding', // we handle this ourselves
+    'transfer-encoding',
+    'content-encoding', // we decode on the server and send plain
 ]);
 
 app.use('/proxy', async (req, res) => {
@@ -53,26 +42,26 @@ app.use('/proxy', async (req, res) => {
         return res.status(400).send('Invalid URL provided.');
     }
 
-    // Build clean request headers — only pass safe, non-identifying ones
+    // Build clean, non-identifying request headers from scratch
     const outboundHeaders = {
-        'Accept': req.headers['accept'] || 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': req.headers['accept-language'] || 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br', // request compressed, decode server-side
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Host': parsedUrl.host,
         'Connection': 'keep-alive',
+        // Intentionally omitting: x-forwarded-*, x-real-ip, forwarded, via, referer, cookie
     };
 
     try {
-        console.log(`[Proxy] Fetching: ${targetUrl}`);
+        console.log(`[Proxy] ${req.method} ${targetUrl}`);
 
         const fetchOptions = {
             method: req.method,
             headers: outboundHeaders,
-            redirect: 'manual', // handle redirects ourselves so we can rewrite them
+            redirect: 'manual',
         };
 
-        // Forward body for POST/PUT/PATCH
         if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
             fetchOptions.body = req;
             fetchOptions.duplex = 'half';
@@ -80,7 +69,7 @@ app.use('/proxy', async (req, res) => {
 
         const targetRes = await fetch(targetUrl, fetchOptions);
 
-        // Handle redirects — rewrite Location header to go through our proxy
+        // Rewrite redirects back through our proxy
         if ([301, 302, 303, 307, 308].includes(targetRes.status)) {
             const location = targetRes.headers.get('location');
             if (location) {
@@ -95,27 +84,42 @@ app.use('/proxy', async (req, res) => {
             }
         }
 
-        // Build clean response headers
+        // Copy safe response headers
         for (const [key, value] of targetRes.headers.entries()) {
-            const lowerKey = key.toLowerCase();
-            if (!BLOCKED_RESPONSE_HEADERS.has(lowerKey)) {
+            if (!BLOCKED_RESPONSE_HEADERS.has(key.toLowerCase())) {
                 res.setHeader(key, value);
             }
         }
 
-        // Set CORS so our frontend can use the response
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('X-Proxied-By', 'kApps-Browser');
-
         res.status(targetRes.status);
 
-        // Stream the response body back
-        const body = await targetRes.arrayBuffer();
-        res.end(Buffer.from(body));
+        // Read compressed body and decompress server-side
+        const rawBuffer = Buffer.from(await targetRes.arrayBuffer());
+        const encoding = targetRes.headers.get('content-encoding') || '';
+
+        let body;
+        try {
+            if (encoding.includes('br')) {
+                body = await brotliDecompress(rawBuffer);
+            } else if (encoding.includes('gzip')) {
+                body = await gunzip(rawBuffer);
+            } else if (encoding.includes('deflate')) {
+                body = await inflate(rawBuffer);
+            } else {
+                body = rawBuffer;
+            }
+        } catch (decompressErr) {
+            // If decompression fails, send raw (it might already be uncompressed)
+            console.warn('[Proxy] Decompression skipped:', decompressErr.message);
+            body = rawBuffer;
+        }
+
+        res.end(body);
 
     } catch (err) {
         console.error('[Proxy Error]', err.message);
-        res.status(500).send(`Proxy Error: ${err.message}`);
+        res.status(502).send(`Proxy Error: ${err.message}`);
     }
 });
 
