@@ -6,6 +6,9 @@ const scramjet = new ScramjetServiceWorker();
 // Force immediate activation — don't wait for old tabs to close
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("message", (event) => {
+    if (event.data && event.data.type === 'claim') self.clients.claim();
+});
 
 // Delete the stale $scramjet IDB so it gets rebuilt with the correct schema on reload
 async function nukeStaleIDB() {

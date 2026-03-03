@@ -104,20 +104,37 @@ async function init() {
     }
 
     try {
-        // Force-unregister any stale Service Workers (prevents old SW versions from persisting)
-        const existingRegs = await navigator.serviceWorker.getRegistrations();
-        for (const reg of existingRegs) {
-            await reg.unregister();
+        // Register fresh Scramjet Service Worker
+        const registration = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/',
+            updateViaCache: 'none'
+        });
+
+        // Wait for the service worker to be fully active and controlling the page
+        if (registration.installing || registration.waiting) {
+            await new Promise((resolve) => {
+                const sw = registration.installing || registration.waiting;
+                sw.addEventListener('statechange', (e) => {
+                    if (e.target.state === 'activated') resolve();
+                });
+            });
         }
-
-
-        // Register fresh Scramjet Service Worker (no caching)
-        await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
         await navigator.serviceWorker.ready;
+
+        // Ensure the service worker is controlling the page (essential for Scramjet)
+        if (!navigator.serviceWorker.controller) {
+            await new Promise(resolve => {
+                navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+                // Force claim if possible
+                navigator.serviceWorker.ready.then(reg => reg.active.postMessage({ type: 'claim' }));
+            });
+        }
 
         // Set up bare-mux transport — epoxy-transport is ESM + no WASM dependency
         const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
         const wispUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/wisp/`;
+
+        console.log('Transport setup: /epoxy/index.mjs');
         await conn.setTransport('/epoxy/index.mjs', [wispUrl]);
 
         // Send Scramjet config to SW
