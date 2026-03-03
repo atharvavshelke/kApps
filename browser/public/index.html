@@ -1,99 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kApps — Web Proxy Browser</title>
-    <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="style.css">
-    <meta name="description" content="kApps Web Proxy Browser — Access any website freely">
+    <title>kApps - Proxy</title>
+    <link rel="stylesheet" href="/style.css">
+    
+    <script src="/baremux/bare.cjs" defer></script>
+    <script src="/scram/scramjet.all.js" defer></script>
+    <script src="/script.js" defer></script>
 </head>
-
 <body>
-    <div class="browser-container">
-        <!-- Browser Chrome (Top Bar) -->
-        <div class="browser-toolbar">
-            <div class="window-controls">
-                <span class="control close"></span>
-                <span class="control minimize"></span>
-                <span class="control maximize"></span>
-            </div>
-
-            <div class="navigation-controls">
-                <button id="back-btn" class="nav-btn" title="Back" disabled><i class="fas fa-arrow-left"></i></button>
-                <button id="forward-btn" class="nav-btn" title="Forward" disabled><i
-                        class="fas fa-arrow-right"></i></button>
-                <button id="reload-btn" class="nav-btn" title="Reload"><i class="fas fa-redo"></i></button>
-            </div>
-
-            <div class="address-bar-container">
-                <i class="fas fa-globe security-icon"></i>
-                <input type="text" id="url-input" class="address-bar" placeholder="Search or enter web address"
-                    autocomplete="off">
-                <button id="go-btn" class="go-btn" title="Go"><i class="fas fa-arrow-right"></i></button>
-            </div>
-
-            <div class="extensions-controls">
-                <button id="home-btn" class="nav-btn" title="Home"><i class="fas fa-home"></i></button>
-            </div>
-        </div>
-
-        <!-- Status Banner (hidden once SW active) -->
-        <div id="sw-banner" class="sw-banner">
-            <div class="spinner-small"></div>
-            <span>Initializing proxy engine…</span>
-        </div>
-
-        <!-- Landing page (shown when no proxy page is loaded) -->
-        <div id="landing" class="landing">
-            <div class="landing-inner">
-                <div class="landing-logo">
-                    <i class="fas fa-globe-americas"></i>
-                </div>
-                <h1 class="landing-title">kApps</h1>
-                <p class="landing-subtitle">Access any website freely</p>
-                <div class="landing-search">
-                    <input type="text" id="landing-input" class="landing-input" placeholder="Search or enter URL…"
-                        autocomplete="off">
-                    <button id="landing-go" class="landing-go"><i class="fas fa-search"></i></button>
-                </div>
-                <div class="landing-shortcuts">
-                    <a class="shortcut" data-url="https://www.google.com">
-                        <div class="shortcut-icon"><i class="fab fa-google"></i></div>
-                        <span>Google</span>
-                    </a>
-                    <a class="shortcut" data-url="https://www.youtube.com">
-                        <div class="shortcut-icon"><i class="fab fa-youtube"></i></div>
-                        <span>YouTube</span>
-                    </a>
-                    <a class="shortcut" data-url="https://discord.com/app">
-                        <div class="shortcut-icon"><i class="fab fa-discord"></i></div>
-                        <span>Discord</span>
-                    </a>
-                    <a class="shortcut" data-url="https://www.reddit.com">
-                        <div class="shortcut-icon"><i class="fab fa-reddit-alien"></i></div>
-                        <span>Reddit</span>
-                    </a>
-                    <a class="shortcut" data-url="https://twitter.com">
-                        <div class="shortcut-icon"><i class="fab fa-twitter"></i></div>
-                        <span>Twitter</span>
-                    </a>
-                    <a class="shortcut" data-url="https://www.spotify.com">
-                        <div class="shortcut-icon"><i class="fab fa-spotify"></i></div>
-                        <span>Spotify</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Proxy content area (iframe for Scramjet pages) -->
-        <iframe id="proxy-frame" class="proxy-frame hidden"></iframe>
+    <div id="banner" class="banner">Initializing Web Proxy Engine...</div>
+    
+    <div id="landing" class="landing">
+        <h1 class="logo">kApps</h1>
+        <p class="subtitle">Secure, fast, uncensored web proxy.</p>
+        
+        <form id="searchform" class="search-form">
+            <input type="text" id="address" class="search-input" placeholder="Enter URL or search term..." autocomplete="off">
+            <button type="submit" class="search-btn">Go</button>
+        </form>
     </div>
-
-    <script src="/scram/scramjet.all.js"></script>
-    <script src="/baremux/index.js"></script>
-    <script src="script.js"></script>
+    
+    <iframe id="sj-frame" class="hidden"></iframe>
 </body>
-
 </html>
