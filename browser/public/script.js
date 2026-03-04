@@ -15,9 +15,10 @@ async function registerSW() {
         throw new Error("Your browser does not support service workers.");
     }
 
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for (const reg of regs) {
-        await reg.unregister();
+    // Only register if not already registered at the correct scope
+    const existingReg = await navigator.serviceWorker.getRegistration(__uv$config.prefix);
+    if (existingReg) {
+        return; // Already registered, skip the costly unregister/re-register cycle
     }
 
     await navigator.serviceWorker.register("/uv/sw.js", {
@@ -41,21 +42,28 @@ async function init() {
         banner.style.display = 'none';
     } catch (err) {
         console.error("Initialization error:", err);
-        banner.textContent = "⚠️ Proxy failed to initialize: " + err.message;
+        banner.textContent = "⚠️ Proxy failed to initialize: " + err.message + " — Reload the page to retry.";
     }
 }
 
 function normalizeUrl(input) {
     input = input.trim();
     if (!input) return "";
+
+    // Direct URL check
     try {
         return new URL(input).toString();
-    } catch (err) {
-        try {
-            const url = new URL(`https://${input}`);
-            if (url.hostname.includes(".")) return url.toString();
-        } catch (err) { }
-    }
+    } catch (_) { }
+
+    // Try adding https:// — accept if it looks like a hostname (has a dot OR is localhost)
+    try {
+        const url = new URL(`https://${input}`);
+        if (url.hostname.includes(".") || url.hostname === "localhost") {
+            return url.toString();
+        }
+    } catch (_) { }
+
+    // Fall back to Google search
     return `https://www.google.com/search?q=${encodeURIComponent(input)}`;
 }
 
@@ -71,7 +79,7 @@ form.addEventListener("submit", async (event) => {
     // Blur the input to hide keyboard on mobile
     addressInput.blur();
 
-    // Optimistically update the address bar text for aesthetic
+    // Optimistically update the address bar text
     addressInput.value = url;
 
     iframe.src = __uv$config.prefix + __uv$config.encodeUrl(url);
@@ -93,24 +101,18 @@ btnReload.addEventListener("click", () => {
 // Sync Address Bar with Iframe Internal Navigation
 iframe.addEventListener("load", () => {
     try {
-        // Since the UV iframe is technically on the same origin (e.g. /uv/service/... ), 
-        // we can read its contentWindow.location!
         const proxyPath = iframe.contentWindow.location.pathname;
 
-        // Ensure it's a proxied path
         if (proxyPath.startsWith(__uv$config.prefix)) {
-            // Extract the encoded portion
             const encodedUrl = proxyPath.slice(__uv$config.prefix.length);
-            // Decode the URL back to plaintext
             const decodedUrl = __uv$config.decodeUrl(encodedUrl);
 
-            // Only update if it's not empty and different (prevents cursor jumping while typing)
             if (decodedUrl && document.activeElement !== addressInput) {
                 addressInput.value = decodedUrl;
             }
         }
     } catch (err) {
-        // Cross-origin boundaries or other edge cases may silently fail, ignore
+        // Cross-origin boundaries or other edge cases may silently fail
         console.warn("Could not sync URL:", err);
     }
 });

@@ -1,6 +1,5 @@
 import { createServer } from "node:http";
 import { fileURLToPath } from "url";
-import { hostname } from "node:os";
 import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -12,7 +11,7 @@ const epoxyPath = fileURLToPath(new URL("./node_modules/@mercuryworkshop/epoxy-t
 const publicPath = fileURLToPath(new URL("./public/", import.meta.url));
 
 // ── Wisp Configuration ──
-logging.set_level(logging.DEBUG);
+logging.set_level(logging.WARN);
 
 // ── Fastify Server with Wisp WebSocket support ──
 const fastify = Fastify({

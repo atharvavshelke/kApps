@@ -13,6 +13,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -20,10 +21,12 @@ body {
     color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    padding: 12px;
+    overflow-x: hidden;
+    /* Safe-area padding for notch/home-indicator on iOS & Android cutouts */
+    padding: env(safe-area-inset-top, 12px) env(safe-area-inset-right, 12px) env(safe-area-inset-bottom, 12px) env(safe-area-inset-left, 12px);
 }
 
 .banner {
@@ -50,6 +53,8 @@ body {
     border: 1px solid #333;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
     overflow: hidden;
+    /* Contain scrolling within the window, not the body */
+    min-height: 0;
 }
 
 /* Top Navigation Bar */
@@ -58,9 +63,10 @@ body {
     align-items: center;
     background-color: var(--nav-bg);
     padding: 8px 16px;
-    height: 52px;
+    min-height: 52px;
     border-bottom: 1px solid var(--nav-border);
-    gap: 16px;
+    gap: 12px;
+    flex-shrink: 0;
 }
 
 /* Mac-style Window Controls */
@@ -98,23 +104,31 @@ body {
     background: transparent;
     border: none;
     color: var(--text-primary);
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: background 0.15s ease;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .nav-btn:hover {
     background: var(--btn-hover);
 }
 
+.nav-btn:active {
+    background: var(--btn-hover);
+    opacity: 0.7;
+}
+
 .nav-btn i {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
 }
 
 /* Omnibox / Address Bar Form */
@@ -125,6 +139,7 @@ body {
     justify-content: center;
     max-width: 800px;
     margin: 0 auto;
+    min-width: 0;
 }
 
 .address-container {
@@ -134,7 +149,7 @@ body {
     border-radius: 8px;
     padding: 0 12px;
     width: 100%;
-    height: 32px;
+    height: 36px;
     border: 1px solid var(--nav-border);
     transition: all 0.2s;
 }
@@ -147,6 +162,7 @@ body {
 .lock-icon {
     color: var(--text-secondary);
     margin-right: 8px;
+    flex-shrink: 0;
 }
 
 .address-input {
@@ -158,6 +174,7 @@ body {
     outline: none;
     font-family: inherit;
     text-align: center;
+    min-width: 0;
 }
 
 .address-input:focus {
@@ -166,6 +183,7 @@ body {
 
 .nav-endcap {
     width: 100px;
+    flex-shrink: 1;
     /* Balances the flex layout against the window controls */
 }
 
@@ -177,6 +195,7 @@ body {
     flex-direction: column;
     background: #fff;
     /* White base for websites */
+    min-height: 0;
 }
 
 /* Landing Splash */
@@ -200,15 +219,18 @@ body {
 
 .splash-content {
     text-align: center;
+    padding: 20px;
 }
 
 .logo {
     font-size: 5rem;
     font-weight: 600;
     letter-spacing: -2px;
+    color: #ffffff;
     background: linear-gradient(135deg, #fff, #a1a1a6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
     margin-bottom: 8px;
 }
 
@@ -223,8 +245,82 @@ body {
     width: 100%;
     height: 100%;
     border: none;
+    touch-action: pan-y pinch-zoom;
 }
 
 .viewport-frame.hidden {
     display: none;
+}
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE — Mobile & Tablet
+   ══════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+    body {
+        padding: env(safe-area-inset-top, 4px) env(safe-area-inset-right, 4px) env(safe-area-inset-bottom, 4px) env(safe-area-inset-left, 4px);
+    }
+
+    .browser-window {
+        border-radius: 8px;
+    }
+
+    /* Hide mac dots — they mean nothing on mobile */
+    .window-controls {
+        display: none;
+    }
+
+    /* Collapse the spacer that balances mac dots */
+    .nav-endcap {
+        display: none;
+    }
+
+    .nav-bar {
+        padding: 6px 8px;
+        gap: 6px;
+        min-height: 48px;
+    }
+
+    .nav-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+    }
+
+    .nav-btn i {
+        width: 16px;
+        height: 16px;
+    }
+
+    .address-container {
+        height: 36px;
+    }
+
+    .address-input {
+        font-size: 0.85rem;
+    }
+
+    .logo {
+        font-size: 3rem;
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+    }
+}
+
+/* Extra-small screens (< 380px) */
+@media (max-width: 380px) {
+    .nav-controls {
+        gap: 2px;
+    }
+
+    .nav-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .address-input {
+        font-size: 0.8rem;
+    }
 }
