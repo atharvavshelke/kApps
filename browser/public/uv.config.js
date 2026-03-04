@@ -15,37 +15,37 @@ self.__uv$config = {
         {
             host: /.*/,
             injectTo: 'head',
-            html: `<script src="/extensions/adblocker.js"></script>`
+            html: `<script src="${typeof location !== 'undefined' ? location.origin : ''}/extensions/adblocker.js"></script>`
         },
         // 1. The Greasemonkey Polyfill (injected on ALL sites first to prevent GM_ errors)
         {
             host: /.*/,
             injectTo: 'head',
-            html: `<script src="/extensions/gm-polyfill.js"></script>`
+            html: `<script src="${typeof location !== 'undefined' ? location.origin : ''}/extensions/gm-polyfill.js"></script>`
         },
         // 2. jav.guru script
         {
             host: /jav\.guru/,
             injectTo: 'body',
-            html: `<script src="/extensions/jav-guru.user.js"></script>`
+            html: `<script src="${typeof location !== 'undefined' ? location.origin : ''}/extensions/jav-guru.user.js"></script>`
         },
         // 3. XVideos filter
         {
             host: /\.xvideos\.com/,
             injectTo: 'body',
-            html: `<script src="/extensions/xvideos-filter.user.js"></script>`
+            html: `<script src="${typeof location !== 'undefined' ? location.origin : ''}/extensions/xvideos-filter.user.js"></script>`
         },
         // 4. Pornhub tweaks
         {
             host: /pornhub\.com/,
             injectTo: 'body',
-            html: `<script src="/extensions/ph-tweaks.user.js"></script>`
+            html: `<script src="${typeof location !== 'undefined' ? location.origin : ''}/extensions/ph-tweaks.user.js"></script>`
         },
         // 5. Manga loader
         {
             host: /(\.hitomi\.la|\.nhentai\.net|nhentai\.to|hitomi\.la)/,
             injectTo: 'body',
-            html: `<script src="/extensions/manga-loader.user.js"></script>`
+            html: `<script src="${typeof location !== 'undefined' ? location.origin : ''}/extensions/manga-loader.user.js"></script>`
         }
     ]
 };
